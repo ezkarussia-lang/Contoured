@@ -64,7 +64,7 @@ async function sendDM(discordId, username, scrobbles) {
               icon_url: "https://www.last.fm/static/images/lastfm_avatar_twitter.png",
             },
             description: [
-              `✅ Your Last.fm account **${username}** has been linked to Plead.`,
+              `✅ Your Last.fm account **${username}** has been linked to Contoured.`,
               "",
               `**Scrobbles:** ${scrobbles.toLocaleString()}`,
               "",
