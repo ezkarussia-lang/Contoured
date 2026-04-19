@@ -8,7 +8,8 @@ const MONGO_URI = (process.env.MONGO_URI || "").trim();
 const DISCORD_TOKEN = (process.env.DISCORD_TOKEN || "").trim();
 const REDIRECT_URI = "https://contoured.vercel.app/spotify/callback";
 
-const SPO_ICON = "https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Icon_RGB_Green.png";
+const SPO_ICON =
+  "https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Icon_RGB_Green.png";
 const SPO_GREEN = "#1db954";
 
 const spotifyAuthSchema = new mongoose.Schema({
@@ -58,7 +59,7 @@ async function sendDM(discordId, spotifyUsername) {
               "",
               "You can now use `,spotify` commands to control playback.",
             ].join("\n"),
-            footer: { text: "Plead · spotify" },
+            footer: { text: "Contoured · spotify" },
           },
         ],
       }),
@@ -82,13 +83,16 @@ function Card({ success, icon, heading, body, showTag }) {
           ✓ spotify connected
         </div>
       )}
-      <p className="footer">Plead · spotify integration</p>
+      <p className="footer">Contoured · spotify integration</p>
     </div>
   );
 }
 
 export default async function SpotifyCallbackPage({ searchParams }) {
-  const { code, state, error } = await searchParams;
+  const params = await searchParams;
+  const code = params.code;
+  const state = params.state;
+  const error = params.error;
 
   if (error || !code || !state) {
     return (
@@ -139,24 +143,43 @@ export default async function SpotifyCallbackPage({ searchParams }) {
       }),
     });
 
-    if (!tokenRes.ok) {
+    const tokenText = await tokenRes.text();
+    let tokenData;
+    try {
+      tokenData = JSON.parse(tokenText);
+    } catch {
       return (
         <Card
           icon="❌"
           success={false}
           heading="Token Exchange Failed"
-          body="Failed to get Spotify token. Please try again with <strong>,spotify login</strong>."
+          body="Spotify returned an unexpected response. Please try again with <strong>,spotify login</strong>."
         />
       );
     }
 
-    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      return (
+        <Card
+          icon="❌"
+          success={false}
+          heading="Token Exchange Failed"
+          body={`Spotify error: ${tokenData.error_description || tokenData.error || "Unknown"}`}
+        />
+      );
+    }
 
-    const profileRes = await fetch("https://api.spotify.com/v1/me", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
-    const profile = await profileRes.json();
-    const spotifyUsername = profile.display_name || profile.id || "your account";
+    let spotifyUsername = "your account";
+    try {
+      const profileRes = await fetch("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      if (profileRes.ok) {
+        const profileText = await profileRes.text();
+        const profile = JSON.parse(profileText);
+        spotifyUsername = profile.display_name || profile.id || "your account";
+      }
+    } catch {}
 
     const c = await getConn();
     const SpotifyAuth =
@@ -180,7 +203,7 @@ export default async function SpotifyCallbackPage({ searchParams }) {
         icon="🎵"
         success={true}
         heading={`Welcome, ${spotifyUsername}!`}
-        body="Your Spotify account has been linked.<br/>Check your Discord DMs — Plead has sent you a confirmation.<br/><br/>You can close this tab."
+        body="Your Spotify account has been linked.<br/>Check your Discord DMs — Contoured has sent you a confirmation.<br/><br/>You can close this tab."
         showTag={true}
       />
     );
@@ -190,7 +213,7 @@ export default async function SpotifyCallbackPage({ searchParams }) {
         icon="❌"
         success={false}
         heading="Something went wrong"
-        body={err.message || "Unknown error. Please try again."}
+        body={String(err?.message || err).replace(/[<>]/g, "") || "Unknown error. Please try again."}
       />
     );
   }
