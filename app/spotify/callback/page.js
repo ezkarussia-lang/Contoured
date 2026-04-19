@@ -8,6 +8,9 @@ const MONGO_URI = (process.env.MONGO_URI || "").trim();
 const DISCORD_TOKEN = (process.env.DISCORD_TOKEN || "").trim();
 const REDIRECT_URI = "https://contoured.vercel.app/spotify/callback";
 
+const SPO_ICON = "https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Icon_RGB_Green.png";
+const SPO_GREEN = "#1db954";
+
 const spotifyAuthSchema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true },
   accessToken: String,
@@ -46,7 +49,16 @@ async function sendDM(discordId, spotifyUsername) {
         embeds: [
           {
             color: 0x1db954,
-            description: `✅ Your Spotify account **${spotifyUsername}** has been connected successfully! You can now use \`,spotify\` commands.`,
+            author: {
+              name: "Spotify Connected",
+              icon_url: SPO_ICON,
+            },
+            description: [
+              `✅ Your Spotify account **${spotifyUsername}** has been linked.`,
+              "",
+              "You can now use `,spotify` commands to control playback.",
+            ].join("\n"),
+            footer: { text: "Plead · spotify" },
           },
         ],
       }),
@@ -54,19 +66,23 @@ async function sendDM(discordId, spotifyUsername) {
   } catch {}
 }
 
-function Card({ success, icon, heading, body, showTag, accentColor }) {
-  const color = accentColor || (success ? "#b90000" : "#666");
+function Card({ success, icon, heading, body, showTag }) {
   return (
     <div className="card">
       <span className="icon">{icon}</span>
-      <h1 style={{ fontSize: "24px", fontWeight: 700, marginBottom: "10px", color }}>{heading}</h1>
+      <h1
+        className={success ? "heading-success" : "heading-error"}
+        style={success ? { color: SPO_GREEN } : {}}
+      >
+        {heading}
+      </h1>
       <p dangerouslySetInnerHTML={{ __html: body }} />
       {showTag && (
-        <div className="tag" style={{ background: accentColor || "#1db954" }}>
+        <div className="tag" style={{ background: SPO_GREEN }}>
           ✓ spotify connected
         </div>
       )}
-      <p className="footer">Contoured · Spotify integration</p>
+      <p className="footer">Plead · spotify integration</p>
     </div>
   );
 }
@@ -80,7 +96,7 @@ export default async function SpotifyCallbackPage({ searchParams }) {
         icon="❌"
         success={false}
         heading="Authorization Failed"
-        body="Spotify authorization was denied or failed. Try again with <strong>,spotify login</strong>."
+        body="Spotify authorization was denied or failed.<br/>Use <strong>,spotify login</strong> in Discord to try again."
       />
     );
   }
@@ -112,7 +128,9 @@ export default async function SpotifyCallbackPage({ searchParams }) {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64")}`,
+        Authorization: `Basic ${Buffer.from(
+          `${CLIENT_ID}:${CLIENT_SECRET}`
+        ).toString("base64")}`,
       },
       body: new URLSearchParams({
         grant_type: "authorization_code",
@@ -161,10 +179,9 @@ export default async function SpotifyCallbackPage({ searchParams }) {
       <Card
         icon="🎵"
         success={true}
-        heading={`Connected, ${spotifyUsername}!`}
-        body="Your Spotify account has been linked.<br/>Check your Discord DMs — Contoured has sent you a confirmation.<br/><br/>You can close this tab."
+        heading={`Welcome, ${spotifyUsername}!`}
+        body="Your Spotify account has been linked.<br/>Check your Discord DMs — Plead has sent you a confirmation.<br/><br/>You can close this tab."
         showTag={true}
-        accentColor="#1db954"
       />
     );
   } catch (err) {
